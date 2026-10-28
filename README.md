@@ -51,6 +51,22 @@ check returned 200 for health, readiness and the sign-in page, using existing
 Python dependencies. This is a local startup check, not a measure of model
 accuracy or a production deployment.
 
+## Measured local results
+
+| Check | Result | Scope |
+| --- | --- | --- |
+| Focused tests | 42 passed | Local adapter, incident creation, CLI, usage and reports |
+| Offline evaluation | 5 / 5 cases passed | Deterministic simulator; no Ollama calls |
+| Ollama investigation | 16.656 s active, 9 model calls | One Qwen 3.5 9B configuration-fault case; safe escalation |
+| API read latency | 2.986 ms median | 15 local requests; deterministic provider, not LLM latency |
+
+The Ollama investigation included one rejected intermediate hypothesis before
+the final diagnosis. An earlier five-case Ollama cohort on a prior revision
+passed 4 / 5; a later change addressed the failed configuration case in a
+separate run. These small samples do not establish general model accuracy.
+Application cold-start time and typical latency of an individual model response
+have not been measured here.
+
 ## Main libraries
 
 [FastAPI](https://github.com/fastapi/fastapi),
