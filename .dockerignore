@@ -1,0 +1,14 @@
+*
+!Dockerfile
+!README.md
+!pyproject.toml
+!requirements-installer.lock
+!requirements-runtime.lock
+!alembic.ini
+!src/
+!src/**
+!migrations/
+!migrations/**
+**/__pycache__/
+**/*.pyc
+**/*.egg-info/

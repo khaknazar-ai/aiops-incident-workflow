@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentops-incident-platform"
+version = "0.1.0"
+description = "A local incident response application with simulated infrastructure."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = ["pydantic>=2.10,<3"]
+
+[project.optional-dependencies]
+runtime = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "langgraph>=1.2,<2",
+    "langgraph-checkpoint-sqlite>=3.1,<4",
+    "langgraph-checkpoint-postgres==3.0.5",
+    "redis>=5,<7",
+    "celery>=5.4,<6",
+    "openai>=1.66,<2",
+    "sqlalchemy>=2.0,<3",
+    "psycopg[binary]>=3.2,<4",
+    "alembic>=1.14,<2",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

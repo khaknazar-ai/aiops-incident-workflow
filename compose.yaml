@@ -1,0 +1,106 @@
+name: agentops
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agentops
+      POSTGRES_USER: agentops
+      POSTGRES_PASSWORD: ${AGENTOPS_POSTGRES_PASSWORD:-agentops-local}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentops -d agentops"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      AGENTOPS_DATABASE_PASSWORD: ${AGENTOPS_POSTGRES_PASSWORD:-agentops-local}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    command: ["uvicorn", "agentops.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      AGENTOPS_DATABASE_PASSWORD: ${AGENTOPS_POSTGRES_PASSWORD:-agentops-local}
+      AGENTOPS_API_KEYS: ${AGENTOPS_API_KEYS:-demo-key=demo-admin:admin}
+      AGENTOPS_SESSION_SECRET: ${AGENTOPS_SESSION_SECRET:?Generate local configuration with python -m agentops.local_config}
+      AGENTOPS_BROWSER_ORIGINS: ${AGENTOPS_BROWSER_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
+      AGENTOPS_SESSION_COOKIE_SECURE: ${AGENTOPS_SESSION_COOKIE_SECURE:-false}
+      AGENTOPS_LLM_PROVIDER: fake
+      AGENTOPS_LLM_PROTOCOL: responses
+      AGENTOPS_LLM_MODEL: fake-deterministic
+    ports:
+      - "127.0.0.1:${AGENTOPS_HOST_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  checkpoint-migrate:
+    build: .
+    command: ["python", "-m", "agentops.checkpoint_postgres", "migrate"]
+    environment:
+      AGENTOPS_DATABASE_PASSWORD: ${AGENTOPS_POSTGRES_PASSWORD:-agentops-local}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build: .
+    command: ["celery", "-A", "agentops.worker.service:celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]
+    environment:
+      AGENTOPS_DATABASE_PASSWORD: ${AGENTOPS_POSTGRES_PASSWORD:-agentops-local}
+      AGENTOPS_REDIS_URL: redis://redis:6379/0
+      AGENTOPS_REDIS_QUEUE: agentops.commands
+      AGENTOPS_CELERY_TASK_NAME: agentops.execute_command
+      AGENTOPS_LLM_PROVIDER: fake
+      AGENTOPS_LLM_PROTOCOL: responses
+      AGENTOPS_LLM_MODEL: fake-deterministic
+      AGENTOPS_MCP_READ_TOOL: get_service_status
+      AGENTOPS_CHECKPOINT_BACKEND: postgres
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      checkpoint-migrate:
+        condition: service_completed_successfully
+
+  dispatcher:
+    build: .
+    command: ["python", "-m", "agentops.worker.dispatcher_service"]
+    environment:
+      AGENTOPS_DATABASE_PASSWORD: ${AGENTOPS_POSTGRES_PASSWORD:-agentops-local}
+      AGENTOPS_REDIS_URL: redis://redis:6379/0
+      AGENTOPS_REDIS_QUEUE: agentops.commands
+      AGENTOPS_CELERY_TASK_NAME: agentops.execute_command
+      AGENTOPS_BROKER_PUBLISH_TIMEOUT_SECONDS: 5
+      AGENTOPS_DISPATCHER_RECOVERY_DELAY_SECONDS: 60
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  agentopsdata:

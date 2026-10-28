@@ -1,0 +1,6 @@
+# Optional wheel-build tools; runtime/dev locks remain unchanged.
+# Verified against the version-specific PyPI file SHA-256 entries.
+# https://pypi.org/project/setuptools/84.2.0/
+# https://pypi.org/project/wheel/0.48.0/
+setuptools==84.2.0 --hash=sha256:8cc107ac7a403105dc8d6477664171f36135fab26adf8b5e0edaebc313f39b21
+wheel==0.48.0 --hash=sha256:3217dcc807155e45db462d7ef2431f5ddda0d7273b700d05a67b271ceb1287ab
